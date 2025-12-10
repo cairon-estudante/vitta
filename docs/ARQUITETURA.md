@@ -1,0 +1,322 @@
+<!--
+Objetivo: Definir a arquitetura e padrões de desenvolvimento do projeto.
+Escopo: Estrutura de código, organização de camadas e boas práticas.
+-->
+
+# Guia de Arquitetura do Projeto
+
+**App de Agendamento de Consultas Nutricionais**  
+*React Native + Expo + Firebase*
+
+---
+
+## 1. Objetivo da Arquitetura
+
+Este documento estabelece a organização do código e as boas práticas a serem seguidas no desenvolvimento do aplicativo de agendamento de consultas nutricionais.
+
+### Principais objetivos:
+- Aplicar o padrão **MVVM simplificado** em React Native
+- Garantir **separação de responsabilidades** (View, ViewModel, Model, Use Case, Infra, DI)
+- Facilitar **testes automatizados** (unitários e de integração)
+- Implementar **Inversão de Dependência** (DIP) e **Injeção de Dependência** (via construtor/fábricas)
+- Evitar código monolítico ("Big Tripe" - tudo junto na tela)
+
+Este guia deve ser seguido por todos os desenvolvedores e agentes que contribuírem com este projeto.
+
+---
+
+## 2. Padrão MVVM no Projeto
+
+Adotamos o padrão **MVVM simplificado** com camadas claras e independentes:
+
+### **View (React Native)**
+- Vive em `src/view` (pages + components); o `src/app` usa apenas o Expo Router para mapear rotas para as páginas.
+- Renderiza UI e captura eventos do usuário.
+- Observa estados expostos pela ViewModel (não contém regra de negócio).
+
+### **ViewModel**
+- Intermediária entre View e Domínio.
+- Gerencia estado da UI (loading, erros, dados) e expõe comandos.
+- Depende de **Use Cases** via injeção de dependência (construtor/fábricas), não de infra.
+
+### **Use Case**
+- Vive em `src/usecase`.
+- Implementa regras de negócio e orquestra fluxo entre entidades e interfaces de serviços.
+- Independente de UI e de implementações concretas (infra).
+
+### **Model (Domínio)**
+- Entidades (`User`, `Appointment`, etc.).
+- Contratos/Interfaces para serviços externos e repositórios (ex.: `IAuthService`, `IAppointmentRepository`).
+- Definições de erros de domínio.
+
+### **Infra**
+- Implementações concretas das interfaces de domínio (Firebase, calendário, notificações, etc.).
+- Não vaza detalhes de tecnologia para o domínio.
+
+### **Dependency Injection (DI)**
+- Fábricas/containers para montar dependências e entregá-las a Use Cases e ViewModels.
+
+### Princípio Central:
+> A **ViewModel** e os **Use Cases** dependem de **interfaces de domínio**, nunca de implementações concretas. A injeção é feita via construtor/fábricas.
+
+---
+
+## 3. Estrutura de Pastas
+
+O código do projeto está organizado no diretório `/src`, utilizando **Expo Router** apenas para roteamento. As páginas reais ficam em `src/view`.
+
+```
+src/
+├─ app/                      # Expo Router - rotas, sem regra de negócio
+│  ├─ _layout.tsx
+│  └─ (arquivos de rota)     # mapeiam para páginas em src/view/pages
+│
+├─ view/                     # UI (páginas e componentes)
+│  ├─ pages/
+│  │   ├─ patient/
+│  │   └─ nutritionist/
+│  ├─ components/
+│  └─ themes/
+│
+├─ viewmodel/                # ViewModels (classes + hooks)
+│
+├─ usecase/                  # Casos de uso / regras de negócio
+│
+├─ model/                    # Domínio (puro)
+│  ├─ entities/
+│  ├─ services/              # Contratos/Interfaces (ex.: repositórios, providers)
+│  └─ errors/
+│
+├─ infra/                    # Implementações concretas
+│  ├─ firebase/
+│  ├─ notifications/
+│  └─ calendar/
+│
+├─ di/                       # Injeção de dependências
+│  └─ container.ts           # Fábricas/registrations
+│
+└─ tests/
+  ├─ unit/
+  │   ├─ model/
+  │   ├─ usecase/
+  │   └─ viewmodel/
+  └─ integration/
+```
+
+---
+
+## 4. Inversão de Dependência e Injeção por Construtor
+
+### 4.1 Princípio
+
+- **Interfaces** vivem no domínio (`model/services` ou equivalente)
+- **Implementações concretas** vivem em `infra/`
+- **ViewModel** depende da interface, recebida via construtor
+
+### 4.2 Exemplo Conceitual
+
+#### Interface de domínio:
+```typescript
+// model/services/IAppointmentRepository.ts
+export interface IAppointmentRepository {
+  requestAppointment(data: RequestAppointmentDTO): Promise<void>;
+  listPatientAppointments(patientId: string): Promise<Appointment[]>;
+  listNutritionistPending(nutritionistId: string): Promise<Appointment[]>;
+  acceptAppointment(id: string): Promise<void>;
+}
+```
+
+#### Implementação na infraestrutura:
+```typescript
+// infra/firebase/FirebaseAppointmentRepository.ts
+export class FirebaseAppointmentRepository implements IAppointmentRepository {
+  /* Implementa os métodos usando Firebase */
+}
+```
+
+#### Caso de uso (regra de negócio):
+```typescript
+// usecase/RequestAppointmentUseCase.ts
+export class RequestAppointmentUseCase {
+  constructor(
+    private readonly appointmentRepository: IAppointmentRepository
+  ) {}
+
+  async execute(input: RequestAppointmentDTO): Promise<void> {
+    // Regras de negócio (validações, conflitos, etc.)
+    await this.appointmentRepository.requestAppointment(input);
+  }
+}
+```
+
+#### ViewModel usando injeção via construtor:
+```typescript
+// viewmodel/PatientScheduleViewModel.ts
+export class PatientScheduleViewModel {
+  constructor(
+    private readonly requestAppointment: RequestAppointmentUseCase
+  ) {}
+
+  async handleRequestAppointment(/* dados da tela */) {
+    await this.requestAppointment.execute(/* dados */);
+    // Tratar estado, erros, feedback de sucesso
+  }
+}
+```
+
+### 4.3 Hook como Adaptador da ViewModel
+
+O Hook (ex.: `usePatientScheduleViewModel`) apenas:
+- Cria uma instância da ViewModel com as dependências corretas
+- Gerencia estado de React (`useState`/`useEffect`)
+- Chama os métodos da ViewModel
+
+**Benefícios:**
+- Testar a ViewModel isoladamente (apenas classes TypeScript)
+- Injetar mocks das interfaces nos testes
+- Manter a integração fácil com React Native
+
+---
+
+## 5. Ferramentas e Boas Práticas de Teste
+
+### 5.1 Stack de Testes
+
+- **Jest**: testes unitários e de integração
+- **@testing-library/react-native**: testes de componentes / Views
+- **Mocks**: `jest.fn()` ou mocks manuais para repositórios e providers
+
+### 5.2 O que Testar
+
+#### **Model / Use Cases (Domínio)**
+- Regras de negócio (ex.: impedir duas consultas no mesmo horário)
+- Casos de uso: Login, Solicitar Consulta, Aceitar Consulta
+- Independentes de Firebase, notificações, calendário
+
+#### **ViewModels**
+- Mudanças de estado (loading, erro, sucesso)
+- Comportamento frente a respostas dos serviços
+- Usando repositórios / serviços mockados
+
+#### **Views (telas)**
+- Renderizam o estado corretamente
+- Chamam ações certas quando o usuário interage
+- Não precisam saber nada de Firebase
+
+### 5.3 Organização dos Testes
+
+```
+tests/
+  unit/
+    usecase/
+      RequestAppointmentUseCase.spec.ts
+      AcceptAppointmentUseCase.spec.ts
+    viewmodel/
+      PatientScheduleViewModel.spec.ts
+  integration/
+    views/
+      ScheduleScreen.spec.tsx
+```
+
+### 5.4 Boas Práticas de Teste
+
+- Cada teste deve focar em **um comportamento específico**
+- Não testar detalhes de implementação desnecessários
+- Evitar acessar Firebase real em testes unitários (usar mocks)
+- Nomear testes de forma descritiva:
+  - Exemplo: `should_not_accept_two_appointments_at_same_time_for_same_nutritionist`
+
+---
+
+## 6. Boas Práticas Gerais do Projeto
+
+### Views "burras"
+- Apenas exibem dados e disparam ações da ViewModel
+- Sem lógica de negócio, sem `if` aninhado pesado
+
+### Tipos e Entidades Bem Definidas
+- Usar TypeScript em todas as camadas
+- Entidades como `Appointment`, `User` devem estar em `model/entities`
+
+### Naming Consistente
+- **ViewModel**: `SomethingViewModel.ts` e hook `useSomethingViewModel.ts`
+- **Repositórios/Serviços (contratos)**: `IAppointmentRepository`, `IAuthService`
+- **Use Cases**: `ActionNameUseCase` (ex.: `RequestAppointmentUseCase`)
+
+### Tratamento de Erros
+- Serviços de domínio podem lançar erros específicos (`DomainError`, `ValidationError`)
+- ViewModel traduz erros em mensagens amigáveis para a View
+
+### Sem "Big Tripe"
+- **Proibido** criar tela com: UI + regra de negócio + chamada Firebase tudo junto
+- Se surgir, refatorar para MVVM + domínio + infra
+
+### Configuração Centralizada
+`di/container.ts` deve expor funções/fábricas para instanciar:
+- Repositórios concretos
+- Use Cases
+- ViewModels (quando necessário)
+
+---
+
+## 7. Fluxo de Desenvolvimento de Funcionalidades
+
+Sempre que for adicionar uma nova funcionalidade:
+
+### 1. Comece pelo Domínio
+- Precisa de nova entidade ou campo?
+- Precisa de um novo caso de uso (Service)?
+
+### 2. Crie/Atualize Interfaces de Repositório
+- Métodos necessários para a funcionalidade
+
+### 3. Implemente na Infraestrutura
+- Firebase, expo-calendar, expo-notifications, etc.
+
+### 4. Crie/Ajuste a ViewModel
+- Injetando os casos de uso via construtor
+- Preparando estados e actions para a View
+
+### 5. Implemente a View
+- Consumindo a ViewModel via Hook
+
+### 6. Escreva Testes
+- Unitário para o serviço
+- Unitário para a ViewModel (com mocks)
+- Opcionalmente de integração para a View
+
+---
+
+## 8. Firebase, Notificações e Calendário
+
+### Firebase Auth / Firestore
+- Somente acessado em `infra/firebase/`
+- Regras de segurança configuradas para isolar dados por usuário
+
+### Notificações (expo-notifications)
+- Encapsuladas em `INotificationProvider` + `ExpoNotificationProvider`
+
+### Calendário (expo-calendar)
+- Encapsulado em `ICalendarProvider` + `ExpoCalendarProvider`
+- Pedir permissão e lidar com negativa de forma graciosa (sem quebrar o app)
+
+---
+
+## 9. Resumo
+
+- O projeto segue **MVVM simplificado** com camadas claras
+- **Domínio não conhece Firebase nem Expo**: apenas interfaces e regras de negócio
+- **Inversão de dependência**: interfaces no domínio, implementações na infra
+- **Injeção por construtor** permite:
+  - Testes fáceis (mocks)
+  - Substituição de implementações (ex.: trocar Firebase por outra solução)
+- **Qualquer nova funcionalidade deve respeitar esta arquitetura** antes de ser implementada
+
+---
+
+## Referências
+
+- [Padrão MVVM](https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93viewmodel)
+- [Princípios SOLID](https://en.wikipedia.org/wiki/SOLID)
+- [Expo Router](https://docs.expo.dev/router/introduction/)
+- [Testing Library React Native](https://callstack.github.io/react-native-testing-library/)
