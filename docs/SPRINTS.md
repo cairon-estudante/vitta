@@ -75,10 +75,9 @@ As integrações complexas (notificações push e calendário nativo) serão imp
 - [x] Configurar regras de segurança básicas do Firestore
 
 #### Casos de Uso
-- [ ] `RegisterPatientUseCase` (validações: email válido, senha >= 6 caracteres)
-- [ ] `LoginUseCase` (autenticação + buscar dados do usuário)
-- [ ] `LogoutUseCase`
-- [ ] `GetCurrentUserUseCase`
+- [x] `AuthUseCases` (login, signUp, logout, onAuthStateChanged)
+  - Validações via `AuthValidator` (email válido, senha >= 6 caracteres)
+  - Busca dados completos do usuário no Firestore após autenticação
 
 #### ViewModel
 - [ ] `AuthViewModel` (loading, error, user state)
