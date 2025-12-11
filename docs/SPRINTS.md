@@ -80,15 +80,29 @@ As integrações complexas (notificações push e calendário nativo) serão imp
   - Busca dados completos do usuário no Firestore após autenticação
 
 #### ViewModel
-- [ ] `AuthViewModel` (loading, error, user state)
-- [ ] `useAuthViewModel`
+- [x] `useHomeViewModel` (state: user, error, loading; actions: logout)
+- [x] `useLoginViewModel` (state: user, error, loading, isAuthenticated; actions: login, clearerror)
+- [x] `useSignUpViewModel` (state: user, error, loading; actions: signup, clearerror)
 
 #### View
-- [ ] Tela de Login (`LoginScreen.tsx`)
-- [ ] Tela de Registro (`RegisterScreen.tsx`)
-- [ ] Navegação básica (redirecionar conforme perfil)
-- [ ] Componente de loading
-- [ ] Componente de mensagem de erro
+
+##### Pages
+- [ ] `SplashScreen.tsx` - Tela de abertura com verificação de auth
+- [ ] `LoginScreen.tsx` - Tela de login
+- [ ] `RegisterScreen.tsx` - Tela de registro de paciente
+- [ ] `patient/PatientHomeScreen.tsx` - Tela inicial do paciente
+- [ ] `nutritionist/NutritionistHomeScreen.tsx` - Tela inicial da nutricionista
+
+##### Components
+- [ ] `LoadingIndicator.tsx` - Spinner de carregamento
+- [ ] `ErrorMessage.tsx` - Exibição de mensagens de erro
+- [ ] `Button.tsx` - Botão reutilizável com estados
+
+##### Themes
+- [ ] `theme.ts` - Cores, fontes e espaçamentos padrão
+
+##### Navegação
+- [ ] Configurar navegação básica (redirecionar conforme perfil)
 
 #### DI & Configuração
 - [ ] Criar `di/container.ts` com fábricas básicas
