@@ -43,8 +43,7 @@ export default class AuthUseCases implements IAuthUseCases {
 
         try {
             const authUser = await this.authService.signup(email, password);
-            const fullUser = makeUser({ name, email, role: 'patient' });
-            fullUser.id = authUser.id!;
+            const fullUser = makeUser({ id: authUser.id!, name, email, role: 'patient' });
             await this.userRepository.createUser(fullUser);
             return fullUser;
         } catch (error) {
