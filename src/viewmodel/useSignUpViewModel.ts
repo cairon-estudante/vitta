@@ -36,6 +36,8 @@ export default function useSignUpViewModel(authUseCases: IAuthUseCases): SignUpS
                 setError(err.message);
             } else if (err instanceof RepositoryError) {
                 setError(err.message);
+            } else if (err instanceof Error) {
+                setError(err.message);
             } else {
                 setError('Erro desconhecido ao criar conta');
             }

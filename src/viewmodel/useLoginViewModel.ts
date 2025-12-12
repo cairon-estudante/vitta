@@ -40,14 +40,13 @@ export default function useLoginViewModel(authUseCases: IAuthUseCases): LoginSta
         } catch (error: unknown) {
             if (error instanceof ValidationError) {
                 setError(error.message);
-            }
-            if (error instanceof AuthError) {
+            } else if (error instanceof AuthError) {
                 setError(error.message);
-            }
-            if (error instanceof RepositoryError) {
+            } else if (error instanceof RepositoryError) {
                 setError(error.message);
+            } else {
+                setError('Erro desconhecido ao fazer login');
             }
-            setError('Erro desconhecido ao fazer login'); `  `
         } finally {
             setLoading(false);
         }
