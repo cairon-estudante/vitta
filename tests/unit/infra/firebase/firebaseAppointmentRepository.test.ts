@@ -379,4 +379,54 @@ describe('FirebaseAppointmentRepository', () => {
             expect(unsubscribe).toBe(mockUnsubscribe);
         });
     });
+
+    describe('onNutritionistPendingChange', () => {
+        it('deve configurar listener para consultas pendentes da nutricionista', () => {
+            const mockCallback = jest.fn();
+            const mockUnsubscribe = jest.fn();
+
+            mockOnSnapshot.mockImplementation((query, onSuccess, onError) => {
+                onSuccess({
+                    docs: [
+                        {
+                            id: 'appt-1',
+                            data: () => ({
+                                patientId: 'patient-1',
+                                nutritionistId: 'nutri-1',
+                                date: '2024-01-15',
+                                timeStart: '09:00',
+                                timeEnd: '11:00',
+                                status: 'pending',
+                                createdAt: mockTimestamp,
+                                updatedAt: mockTimestamp,
+                            }),
+                        },
+                    ],
+                });
+                return mockUnsubscribe;
+            });
+
+            const unsubscribe = repository.onNutritionistPendingChange('nutri-1', mockCallback);
+
+            expect(mockCallback).toHaveBeenCalled();
+            expect(mockCallback.mock.calls[0][0]).toHaveLength(1);
+            expect(mockCallback.mock.calls[0][0][0].status).toBe('pending');
+            expect(unsubscribe).toBe(mockUnsubscribe);
+        });
+
+        it('deve retornar unsubscribe function', () => {
+            const mockCallback = jest.fn();
+            const mockUnsubscribe = jest.fn();
+
+            mockOnSnapshot.mockImplementation((query, onSuccess, onError) => {
+                onSuccess({ docs: [] });
+                return mockUnsubscribe;
+            });
+
+            const unsubscribe = repository.onNutritionistPendingChange('nutri-1', mockCallback);
+
+            expect(typeof unsubscribe).toBe('function');
+            expect(unsubscribe).toBe(mockUnsubscribe);
+        });
+    });
 });

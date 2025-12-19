@@ -33,6 +33,7 @@ const createMockRepository = (appointments: Appointment[] = []): IAppointmentRep
         callback(appointments);
         return () => {};
     }),
+    onNutritionistPendingChange: jest.fn(() => () => {}),
 });
 
 describe('ListPatientAppointmentsUseCase', () => {

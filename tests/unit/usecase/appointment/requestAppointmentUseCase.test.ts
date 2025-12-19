@@ -4,15 +4,19 @@ import Appointment from '../../../../src/model/entities/appointment';
 import ValidationError from '../../../../src/model/errors/validationError';
 
 // Mock do repositório
-const createMockRepository = (existingAppointments: Appointment[] = []): IAppointmentRepository => ({
+const createMockRepository = (
+    existingAppointments: Appointment[] = [],
+    patientAppointments: Appointment[] = []
+): IAppointmentRepository => ({
     create: jest.fn(),
     getById: jest.fn(),
-    listByPatient: jest.fn(),
+    listByPatient: jest.fn().mockResolvedValue(patientAppointments),
     listByDate: jest.fn().mockResolvedValue(existingAppointments),
     listByStatus: jest.fn(),
     listAcceptedByDateRange: jest.fn(),
     updateStatus: jest.fn(),
     onPatientAppointmentsChange: jest.fn(() => () => {}),
+    onNutritionistPendingChange: jest.fn(() => () => {}),
 });
 
 // Helper para criar datas locais
@@ -365,6 +369,138 @@ describe('RequestAppointmentUseCase', () => {
             });
 
             expect(appointment.timeStart).toBe('11:00');
+        });
+    });
+
+    describe('Patient Duplicate Request Validation', () => {
+        it('should throw ValidationError when patient has pending request for same slot', async () => {
+            const futureDate = createFutureWeekday();
+            const dateStr = futureDate.toISOString().split('T')[0];
+
+            const patientPendingAppointment: Appointment = {
+                id: 'appt-existing',
+                patientId: 'patient-123',
+                nutritionistId: 'nutri-1',
+                date: dateStr,
+                timeStart: '09:00',
+                timeEnd: '11:00',
+                status: 'pending',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+
+            const mockRepo = createMockRepository([], [patientPendingAppointment]);
+            const useCase = new RequestAppointmentUseCase(mockRepo);
+
+            await expect(
+                useCase.execute({
+                    ...validInput,
+                    date: futureDate,
+                    timeStart: '09:00',
+                    timeEnd: '11:00',
+                })
+            ).rejects.toThrow(ValidationError);
+            await expect(
+                useCase.execute({
+                    ...validInput,
+                    date: futureDate,
+                    timeStart: '09:00',
+                    timeEnd: '11:00',
+                })
+            ).rejects.toThrow('Você já tem uma solicitação pendente para este horário.');
+        });
+
+        it('should allow request when patient has pending request for different slot', async () => {
+            const futureDate = createFutureWeekday();
+            const dateStr = futureDate.toISOString().split('T')[0];
+
+            const patientPendingAppointment: Appointment = {
+                id: 'appt-existing',
+                patientId: 'patient-123',
+                nutritionistId: 'nutri-1',
+                date: dateStr,
+                timeStart: '11:00',
+                timeEnd: '13:00',
+                status: 'pending',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+
+            const mockRepo = createMockRepository([], [patientPendingAppointment]);
+            const useCase = new RequestAppointmentUseCase(mockRepo);
+
+            const appointment = await useCase.execute({
+                ...validInput,
+                date: futureDate,
+                timeStart: '09:00',
+                timeEnd: '11:00',
+            });
+
+            expect(appointment).toBeDefined();
+            expect(appointment.status).toBe('pending');
+        });
+
+        it('should allow request when patient has pending request for different date', async () => {
+            const futureDate = createFutureWeekday();
+            const differentDate = new Date(futureDate);
+            differentDate.setDate(differentDate.getDate() + 1);
+            while (differentDate.getDay() === 0 || differentDate.getDay() === 6) {
+                differentDate.setDate(differentDate.getDate() + 1);
+            }
+            const differentDateStr = differentDate.toISOString().split('T')[0];
+
+            const patientPendingAppointment: Appointment = {
+                id: 'appt-existing',
+                patientId: 'patient-123',
+                nutritionistId: 'nutri-1',
+                date: differentDateStr,
+                timeStart: '09:00',
+                timeEnd: '11:00',
+                status: 'pending',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+
+            const mockRepo = createMockRepository([], [patientPendingAppointment]);
+            const useCase = new RequestAppointmentUseCase(mockRepo);
+
+            const appointment = await useCase.execute({
+                ...validInput,
+                date: futureDate,
+                timeStart: '09:00',
+                timeEnd: '11:00',
+            });
+
+            expect(appointment).toBeDefined();
+        });
+
+        it('should allow request when patient has accepted/cancelled/rejected request for same slot', async () => {
+            const futureDate = createFutureWeekday();
+            const dateStr = futureDate.toISOString().split('T')[0];
+
+            const patientCancelledAppointment: Appointment = {
+                id: 'appt-cancelled',
+                patientId: 'patient-123',
+                nutritionistId: 'nutri-1',
+                date: dateStr,
+                timeStart: '09:00',
+                timeEnd: '11:00',
+                status: 'cancelled',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+
+            const mockRepo = createMockRepository([], [patientCancelledAppointment]);
+            const useCase = new RequestAppointmentUseCase(mockRepo);
+
+            const appointment = await useCase.execute({
+                ...validInput,
+                date: futureDate,
+                timeStart: '09:00',
+                timeEnd: '11:00',
+            });
+
+            expect(appointment).toBeDefined();
         });
     });
 });
