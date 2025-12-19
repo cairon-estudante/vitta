@@ -12,6 +12,7 @@ const createMockRepository = (acceptedAppointments: Appointment[] = []): IAppoin
     listAcceptedByDateRange: jest.fn().mockResolvedValue(acceptedAppointments),
     updateStatus: jest.fn(),
     onPatientAppointmentsChange: jest.fn(() => () => {}),
+    onNutritionistPendingChange: jest.fn(() => () => {}),
 });
 
 // Helper para criar datas locais

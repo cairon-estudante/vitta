@@ -27,6 +27,7 @@ const createMockRepository = (appointment: Appointment | null = null): IAppointm
     listAcceptedByDateRange: jest.fn(),
     updateStatus: jest.fn(),
     onPatientAppointmentsChange: jest.fn(() => () => {}),
+    onNutritionistPendingChange: jest.fn(() => () => {}),
 });
 
 describe('GetAppointmentDetailsUseCase', () => {

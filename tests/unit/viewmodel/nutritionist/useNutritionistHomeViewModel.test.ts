@@ -20,6 +20,7 @@ describe('useNutritionistHomeViewModel', () => {
             listAcceptedByDateRange: jest.fn(),
             updateStatus: jest.fn(),
             onPatientAppointmentsChange: jest.fn(),
+            onNutritionistPendingChange: jest.fn(),
         };
 
         mockUserRepository = {
